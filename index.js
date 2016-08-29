@@ -1,5 +1,37 @@
 
 document.addEventListener("DOMContentLoaded", function () {
+  let wsUrl = 'ws://localhost:3001/';
+  let ws = new WebSocket(wsUrl);
+  ws.onopen = function (evt) {
+    console.log('ws open()');
+  };
+  ws.onerror = function (err) {
+    console.error('ws onerror() ERR:', err);
+  };
+  ws.onmessage = function (evt) {
+    console.log('ws onmessage() data:', evt.data);
+    let message = JSON.parse(evt.data);
+    if (message.type === 'offer') {
+      // -- got offer ---
+      console.log('Received offer ...');
+      textToReceiveSdp.value = message.sdp;
+      let offer = new RTCSessionDescription(message);
+      setOffer(offer);
+    }
+    else if (message.type === 'answer') {
+      // --- got answer ---
+      console.log('Received answer ...');
+      textToReceiveSdp.value = message.sdp;
+      let answer = new RTCSessionDescription(message);
+      setAnswer(answer);
+    } else if (message.type === 'candidate') {
+      // --- got ICE candidate ---
+      console.log('Received ICE candidate ...');
+      let candidate = new RTCIceCandidate(message.ice);
+      console.log(candidate);
+      addIceCandidate(candidate);
+    }
+  };
 
   document.querySelector('.connect').addEventListener('click', connect, false);
   document.querySelector('.hangup').addEventListener('click', hangUp, false);
@@ -39,9 +71,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function sendSdp(sessionDescription) {
     console.log('---sending sdp ---');
+
     textForSendSdp.value = sessionDescription.sdp;
-    textForSendSdp.focus();
-    textForSendSdp.select();
+
+    // --- シグナリングサーバーに送る ---
+    let message = JSON.stringify(sessionDescription);
+    console.log('sending SDP=' + message);
+    ws.send(message);
   }
 
   // ---------------------- connection handling -----------------------
@@ -56,13 +92,11 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log(evt.candidate);
 
         // Trickle ICE の場合は、ICE candidateを相手に送る
-        // Vanilla ICE の場合には、何もしない
+        sendIceCandidate(evt.candidate);
       } else {
         console.log('empty ice event');
 
         // Trickle ICE の場合は、何もしない
-        // Vanilla ICE の場合には、ICE candidateを含んだSDPを相手に送る
-        sendSdp(peer.localDescription);
       }
     };
 
@@ -116,6 +150,14 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelector('body').style.backgroundColor = convertColorToString(buf);
   }
 
+  function sendIceCandidate(candidate) {
+    console.log('---sending ICE candidate ---');
+    let obj = { type: 'candidate', ice: candidate };
+    let message = JSON.stringify(obj);
+    console.log('sending candidate=' + message);
+    ws.send(message);
+  }
+
   function makeOffer() {
     peerConnection = prepareNewConnection();
     peerConnection.createOffer()
@@ -126,8 +168,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('setLocalDescription() succsess in promise');
 
         // -- Trickle ICE の場合は、初期SDPを相手に送る -- 
-        // -- Vanilla ICE の場合には、まだSDPは送らない --
-        //sendSdp(peerConnection.localDescription);
+        sendSdp(peerConnection.localDescription);
       }).catch(function (err) {
         console.error(err);
       });
@@ -162,8 +203,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('setLocalDescription() succsess in promise');
 
         // -- Trickle ICE の場合は、初期SDPを相手に送る -- 
-        // -- Vanilla ICE の場合には、まだSDPは送らない --
-        //sendSdp(peerConnection.localDescription);
+        sendSdp(peerConnection.localDescription);
       }).catch(function (err) {
         console.error(err);
       });
@@ -245,5 +285,14 @@ document.addEventListener("DOMContentLoaded", function () {
     return color.reduce((s, e) => s + ('0' + e.toString(16)).slice(-2), '#');
   }
   
+  function addIceCandidate(candidate) {
+    if (peerConnection) {
+      peerConnection.addIceCandidate(candidate);
+    }
+    else {
+      console.error('PeerConnection not exist!');
+      return;
+    }
+  }
 
 }, false);
