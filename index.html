@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Hand Signaling</title>
+  <script type="text/javascript" src="index.js"></script>
+</head>
+
+<body>
+  Hand Signaling 2016<br />
+  <button type="button" class="connect">Connect</button>
+  <button type="button" class="hangup">Hang Up</button>
+  <p>SDP to send:<br />
+    <textarea id="text_for_send_sdp" rows="5" cols="60" readonly="readonly">SDP to send</textarea>
+  </p>
+  <p>SDP to receive:&nbsp;
+    <button type="button" class="receive">Receive remote SDP</button><br />
+    <textarea id="text_for_receive_sdp" rows="5" cols="60"></textarea>
+  </p>
+  <p>
+    <button type="button" class="send">Send</button>
+    <input type="color" id="color_for_message" />
+  </p>
+</body>
+
+</html>
